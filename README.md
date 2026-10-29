@@ -36,3 +36,56 @@ Make sure you have the following installed:
    ```bash
    git clone https://github.com/matrix4587/evalia-platform.git
    cd evalia-platform
+
+
+
+Install dependencies:
+
+bash
+pnpm install
+Set up environment variables:
+Create a .env file in the root directory and add the following:
+
+env
+DATABASE_URL="postgresql://user:password@localhost:5432/evalia?schema=public"
+DIRECT_URL="postgresql://user:password@localhost:5432/evalia?schema=public"
+AUTH_SECRET="your_generated_random_secret"
+AUTH_URL="http://localhost:3000"
+Push the database schema:
+
+bash
+pnpm prisma db push
+Seed the database (optional):
+
+bash
+pnpm dlx tsx prisma/seed-linked-system.ts
+pnpm dlx tsx prisma/seed-ai-evaluation.ts
+Run the development server:
+
+bash
+pnpm dev
+Open http://localhost:3000 in your browser to see the app.
+
+📁 Project Structure
+text
+src/
+├── app/
+│   ├── (auth)/          # Login, Register, Verify Email
+│   ├── (worker)/        # Dashboard, Assessments, Earnings, Tasks
+│   ├── api/             # Backend API routes
+│   └── page.tsx         # Marketing Landing Page
+├── components/          # Reusable UI components (Shadcn)
+├── lib/                 # Utility functions, Prisma client
+└── server/              # Business logic & services
+🛡️ License
+This project is for educational and portfolio purposes. All rights reserved.
+
+text
+
+### Step 2: Push it to GitHub
+Once you save the file, open your terminal (Git Bash or PowerShell) and run these three commands to push it to GitHub:
+
+```bash
+git add README.md
+git commit -m "docs: add professional README"
+git push
