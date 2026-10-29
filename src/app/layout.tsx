@@ -1,11 +1,27 @@
 import type { Metadata } from "next";
-import { DM_Sans } from "next/font/google";
-import "./globals.css"; // THIS IS CRITICAL
+import localFont from "next/font/local"; // Changed import
+import "./globals.css";
 import { SessionProvider } from "next-auth/react";
 
-const dmSans = DM_Sans({ 
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
+// Point to your local font files
+const dmSans = localFont({
+  src: [
+    {
+      path: "./fonts/DMSans-Regular.ttf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./fonts/DMSans-Medium.ttf",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "./fonts/DMSans-Bold.ttf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-dm-sans",
 });
 
