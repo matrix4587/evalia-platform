@@ -36,10 +36,3 @@ Make sure you have the following installed:
    ```bash
    git clone https://github.com/matrix4587/evalia-platform.git
    cd evalia-platform
-
-
-
-```bash
-git add README.md
-git commit -m "docs: add professional README"
-git push
