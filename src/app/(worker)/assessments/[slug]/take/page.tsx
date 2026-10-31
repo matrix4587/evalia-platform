@@ -16,7 +16,6 @@ export default function TakeAssessmentPage() {
   const [assessment, setAssessment] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   
-  // State to track answers, feedback, and attempts
   const [answers, setAnswers] = useState<Record<string, string>>({}); 
   const [feedback, setFeedback] = useState<Record<string, 'correct' | 'incorrect' | 'locked' | null>>({});
   const [attempts, setAttempts] = useState<Record<string, number>>({});
@@ -41,7 +40,6 @@ export default function TakeAssessmentPage() {
   }, [slug]);
 
   const handleOptionSelect = (questionId: string, optionLabel: string, isCorrect: boolean) => {
-    // If already correct or locked, do nothing
     if (feedback[questionId] === 'correct' || feedback[questionId] === 'locked') return;
 
     const currentAttempts = attempts[questionId] || 0;
@@ -54,17 +52,14 @@ export default function TakeAssessmentPage() {
       setFeedback(prev => ({ ...prev, [questionId]: 'correct' }));
     } else {
       if (newAttempts >= MAX_ATTEMPTS) {
-        // Out of attempts
         setFeedback(prev => ({ ...prev, [questionId]: 'locked' }));
       } else {
-        // Still has attempts left
         setFeedback(prev => ({ ...prev, [questionId]: 'incorrect' }));
       }
     }
   };
 
   const handleRetry = (questionId: string) => {
-    // Clear the selection, but keep the attempt count
     setAnswers(prev => {
       const newAnswers = { ...prev };
       delete newAnswers[questionId];
@@ -74,7 +69,6 @@ export default function TakeAssessmentPage() {
   };
 
   const handleSubmit = async () => {
-    // Check if all questions are either correct or locked (out of attempts)
     const allAnswered = assessment.questions.every(
       (q: any) => feedback[q.id] === 'correct' || feedback[q.id] === 'locked'
     );
@@ -86,10 +80,6 @@ export default function TakeAssessmentPage() {
 
     setIsSubmitting(true);
     try {
-      // Only submit answers where the user got it correct on their own
-      // Or should we submit the final wrong answer? The spec says "last try option will be recorded whether correct or wrong".
-      // The `answers` state holds the last clicked option, so we can just pass that.
-      
       const payload = Object.entries(answers).map(([questionId, selectedOption]) => ({
         questionId,
         selectedOption
@@ -102,7 +92,7 @@ export default function TakeAssessmentPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || "Submission failed");
 
       setResult(data);
       router.refresh();
@@ -128,7 +118,9 @@ export default function TakeAssessmentPage() {
           {result.passed ? "Assessment Passed!" : "Assessment Failed"}
         </h1>
         <p className="text-lg text-slate-600">
-          You scored {result.score.toFixed(0)}%. You needed 80% to pass.
+          {/* THE FIX: Safely check for score before calling toFixed */}
+          You scored {result.score !== undefined ? result.score.toFixed(0) : "0"}%. 
+          You needed {assessment.passingScore}% to pass.
         </p>
         <Button asChild className="mt-4 bg-blue-600 hover:bg-blue-700 h-12 px-8">
           <Link href="/dashboard">Back to Dashboard</Link>
@@ -136,11 +128,6 @@ export default function TakeAssessmentPage() {
       </div>
     );
   }
-
-  // Check if the submit button should be enabled
-  const isFormComplete = assessment.questions.every(
-    (q: any) => feedback[q.id] === 'correct' || feedback[q.id] === 'locked'
-  );
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
@@ -152,7 +139,7 @@ export default function TakeAssessmentPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900">{assessment.name}</h1>
-          <p className="text-slate-500 mt-1">You have {MAX_ATTEMPTS} attempts per question.</p>
+          <p className="text-slate-500 mt-1">Select the correct answer for each question.</p>
         </div>
       </div>
 
@@ -173,7 +160,6 @@ export default function TakeAssessmentPage() {
                 <CardTitle className="text-base font-bold text-slate-800">
                   Question {index + 1} <span className="text-slate-400 font-normal ml-2">of {assessment.questions.length}</span>
                 </CardTitle>
-                {/* Attempts Counter */}
                 <div className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                   isLocked ? 'bg-red-100 text-red-700' :
                   currentFeedback === 'correct' ? 'bg-green-100 text-green-700' :
@@ -192,17 +178,14 @@ export default function TakeAssessmentPage() {
                     const isCorrectOption = opt.isCorrect;
                     
                     let optionClass = "border-slate-200 hover:bg-slate-50 bg-white";
-                    
                     if (isSelected && currentFeedback === 'correct') {
                       optionClass = "border-green-500 bg-green-50 ring-1 ring-green-500";
                     } else if (isSelected && currentFeedback === 'incorrect') {
                       optionClass = "border-red-500 bg-red-50 ring-1 ring-red-500";
                     } else if (isLocked) {
                       if (isCorrectOption) {
-                        // Reveal correct answer
                         optionClass = "border-green-500 bg-green-50/50";
                       } else if (isSelected) {
-                        // Show the user's final wrong answer
                         optionClass = "border-red-500 bg-red-50/50 opacity-60";
                       } else {
                         optionClass = "border-slate-200 bg-slate-50 opacity-40";
@@ -248,49 +231,37 @@ export default function TakeAssessmentPage() {
                   })}
                 </div>
 
-                {/* Success Feedback */}
+                {/* Feedback */}
                 {currentFeedback === 'correct' && (
                   <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
                     <div>
                       <h4 className="font-bold text-green-800">Correct!</h4>
-                      <p className="text-sm text-green-700 mt-1">You accurately identified the correct evaluation approach.</p>
                     </div>
                   </div>
                 )}
 
-                {/* Error Feedback - Still has attempts */}
                 {currentFeedback === 'incorrect' && (
                   <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-3">
                     <div className="flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
                       <div>
                         <h4 className="font-bold text-red-800">Incorrect Answer</h4>
-                        <p className="text-sm text-red-700 mt-1">
-                          That is not the most accurate evaluation. You have {MAX_ATTEMPTS - currentAttempts} {MAX_ATTEMPTS - currentAttempts === 1 ? 'attempt' : 'attempts'} left.
-                        </p>
+                        <p className="text-sm text-red-700 mt-1">You have {MAX_ATTEMPTS - currentAttempts} attempts left.</p>
                       </div>
                     </div>
-                    <Button 
-                      onClick={() => handleRetry(q.id)} 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-fit ml-8 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800"
-                    >
+                    <Button onClick={() => handleRetry(q.id)} variant="outline" size="sm" className="w-fit ml-8 border-red-200 text-red-700">
                       <RotateCcw className="w-4 h-4 mr-2" /> Try Again
                     </Button>
                   </div>
                 )}
 
-                {/* Error Feedback - Locked out */}
                 {isLocked && (
                   <div className="mt-4 p-4 bg-slate-100 border border-slate-300 rounded-xl flex items-start gap-3">
                     <Lock className="w-5 h-5 text-slate-500 mt-0.5 shrink-0" />
                     <div>
                       <h4 className="font-bold text-slate-800">Question Locked</h4>
-                      <p className="text-sm text-slate-600 mt-1">
-                        You have run out of attempts. The correct answer is highlighted in green above. Your last attempt has been recorded.
-                      </p>
+                      <p className="text-sm text-slate-600 mt-1">You have run out of attempts. The correct answer is highlighted in green above.</p>
                     </div>
                   </div>
                 )}
@@ -302,7 +273,7 @@ export default function TakeAssessmentPage() {
 
       <Button 
         onClick={handleSubmit} 
-        disabled={isSubmitting || !isFormComplete}
+        disabled={isSubmitting || !assessment.questions.every((q: any) => feedback[q.id] === 'correct' || feedback[q.id] === 'locked')}
         className="w-full h-12 text-lg font-bold bg-blue-600 hover:bg-blue-700 mt-6"
       >
         {isSubmitting ? "Submitting..." : "Submit Assessment"}
