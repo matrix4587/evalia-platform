@@ -11,20 +11,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
 
     const resolvedParams = await params;
     const body = await req.json();
-    // The frontend sends an array like: [{ questionId: '...', selectedOption: 'Positive' }]
     const userAnswers = body.answers; 
+
+    console.log("=== 🚀 SUBMIT ASSESSMENT START ===");
+    console.log("Assessment Slug:", resolvedParams.slug);
+    console.log("User Answers Received:", JSON.stringify(userAnswers, null, 2));
 
     if (!userAnswers || !Array.isArray(userAnswers)) {
       return NextResponse.json({ error: "Invalid answers format" }, { status: 400 });
     }
 
-    // 1. Fetch the assessment WITH the correct answers from the database
     const assessment = await prisma.assessment.findUnique({
       where: { slug: resolvedParams.slug },
       include: {
         questions: {
           include: {
-            options: true // We need the options to check which one is correct
+            options: true
           }
         }
       }
@@ -34,29 +36,37 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
     }
 
-    // 2. Grade the assessment
     let correctCount = 0;
     const totalQuestions = assessment.questions.length;
 
+    console.log(`Assessment has ${totalQuestions} questions.`);
+
     assessment.questions.forEach((question) => {
-      // Find the user's answer for this question
       const userAnswer = userAnswers.find((a: any) => a.questionId === question.id);
       
       if (userAnswer) {
-        // Find the correct option from the database
         const correctOption = question.options.find(opt => opt.isCorrect);
         
-        // Compare the user's selected label to the correct option's label
+        console.log(`--- Question: ${question.id} ---`);
+        console.log(`User Selected: "${userAnswer.selectedOption}"`);
+        console.log(`Correct Option Label from DB: "${correctOption?.label}"`);
+        
         if (correctOption && userAnswer.selectedOption === correctOption.label) {
+          console.log("✅ MATCH: Correct answer!");
           correctCount++;
+        } else {
+          console.log("❌ MISMATCH: Incorrect answer.");
         }
+      } else {
+        console.log(`⚠️ No answer found for question: ${question.id}`);
       }
     });
 
     const scorePercentage = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
     const passed = scorePercentage >= assessment.passingScore;
 
-    // 3. Save the attempt
+    console.log(`Final Score: ${scorePercentage}%. Passed: ${passed}`);
+
     await prisma.assessmentAttempt.create({
       data: {
         assessmentId: assessment.id,
@@ -68,9 +78,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       }
     });
 
-    // 4. If passed, grant the capability
     if (passed) {
-      // Find the rule that grants the capability for this assessment
       const rule = await prisma.qualificationRule.findFirst({
         where: { assessmentId: assessment.id }
       });
@@ -98,7 +106,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       }
     }
 
-    // 5. Return the result to the frontend
     return NextResponse.json({ 
       success: true, 
       score: scorePercentage, 
